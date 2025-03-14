@@ -8,5 +8,4 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableJpaRepositories(basePackages = "com.example.hexagonalvslayered.hexagonal.adapter.out.persistence")
 @EnableTransactionManagement
 public class HexagonalConfig {
-    // 필요한 경우 추가 설정을 여기에 정의할 수 있습니다.
 } 

@@ -2,10 +2,11 @@ package com.example.hexagonalvslayered.hexagonal.application.service;
 
 import com.example.hexagonalvslayered.hexagonal.application.port.in.GetTodoQuery;
 import com.example.hexagonalvslayered.hexagonal.application.port.in.ManageTodoUseCase;
+import com.example.hexagonalvslayered.hexagonal.application.port.out.EventPublisherPort;
 import com.example.hexagonalvslayered.hexagonal.application.port.out.LoadTodoPort;
 import com.example.hexagonalvslayered.hexagonal.application.port.out.SaveTodoPort;
-import com.example.hexagonalvslayered.hexagonal.application.port.out.SendNotificationPort;
 import com.example.hexagonalvslayered.hexagonal.domain.Todo;
+import com.example.hexagonalvslayered.hexagonal.domain.event.TodoCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ import java.util.Optional;
  * 2. 의존성 역전 원칙(DIP): 도메인이 인터페이스(포트)에 의존하고, 구현체(어댑터)는 이 인터페이스를 구현
  * 3. 도메인 중심 설계: 도메인 모델이 비즈니스 로직을 포함하는 풍부한 객체로 설계됨
  * 4. 외부 시스템과의 결합도 감소: 포트 인터페이스를 통해 외부 시스템과 통신하므로 결합도가 낮음
+ * 5. 이벤트 기반 통신: 도메인 이벤트를 통한 비동기 통신으로 서비스 간 결합도 감소
  */
 @Service
 @RequiredArgsConstructor
@@ -31,7 +33,7 @@ public class TodoService implements GetTodoQuery, ManageTodoUseCase {
     // 이를 통해 외부 시스템과의 결합도를 낮춤
     private final LoadTodoPort loadTodoPort;
     private final SaveTodoPort saveTodoPort;
-    private final SendNotificationPort sendNotificationPort;
+    private final EventPublisherPort eventPublisherPort;
     
     @Override
     public List<Todo> getAllTodos() {
@@ -54,7 +56,14 @@ public class TodoService implements GetTodoQuery, ManageTodoUseCase {
                 .updatedAt(LocalDateTime.now())
                 .build();
         
-        return saveTodoPort.saveTodo(todo);
+        Todo savedTodo = saveTodoPort.saveTodo(todo);
+        
+        // 도메인 이벤트 발행
+        TodoCreatedEvent event = new TodoCreatedEvent(savedTodo.getId(), savedTodo.getTitle());
+        savedTodo.registerEvent(event);
+        publishEvents(savedTodo);
+        
+        return savedTodo;
     }
     
     @Override
@@ -67,7 +76,10 @@ public class TodoService implements GetTodoQuery, ManageTodoUseCase {
         // 도메인 로직(업데이트)이 도메인 객체 내부에 캡슐화됨
         todo.update(command.getTitle(), command.getDescription());
         
-        return saveTodoPort.saveTodo(todo);
+        Todo updatedTodo = saveTodoPort.saveTodo(todo);
+        publishEvents(updatedTodo);
+        
+        return updatedTodo;
     }
     
     @Override
@@ -87,15 +99,21 @@ public class TodoService implements GetTodoQuery, ManageTodoUseCase {
         
         // 헥사고날 아키텍처에서는 도메인 객체가 비즈니스 로직을 포함하는 풍부한 객체로 설계됨
         // 도메인 로직(완료 처리)이 도메인 객체 내부에 캡슐화됨
+        // 도메인 객체 내부에서 이벤트 발생
         todo.markAsCompleted();
         
         Todo updatedTodo = saveTodoPort.saveTodo(todo);
         
-        // 헥사고날 아키텍처에서는 포트 인터페이스를 통해 외부 시스템과 통신
-        // 이를 통해 서비스 계층과 외부 시스템 간의 결합도를 낮춤
-        // 단위 테스트 시 포트 인터페이스를 모킹하여 외부 시스템과 분리된 테스트 가능
-        sendNotificationPort.sendCompletionNotification(updatedTodo.getId(), updatedTodo.getTitle());
+        // 도메인 이벤트 발행
+        publishEvents(updatedTodo);
         
         return updatedTodo;
+    }
+    
+    /**
+     * 도메인 객체에서 발생한 이벤트를 발행합니다.
+     */
+    private void publishEvents(Todo todo) {
+        todo.pullDomainEvents().forEach(eventPublisherPort::publishEvent);
     }
 } 
