@@ -7,13 +7,11 @@ import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -46,6 +44,18 @@ public class Todo {
     private List<DomainEvent> domainEvents = new ArrayList<>();
     
     /**
+     * ID, 제목, 완료 상태만 초기화하는 생성자
+     */
+    public Todo(Long id, String title, boolean completed) {
+        this.id = id;
+        this.title = title;
+        this.completed = completed;
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+        this.domainEvents = new ArrayList<>();
+    }
+    
+    /**
      * 발생한 도메인 이벤트를 등록합니다.
      */
     public void registerEvent(DomainEvent event) {
@@ -56,7 +66,7 @@ public class Todo {
      * 발생한 도메인 이벤트 목록을 반환하고 초기화합니다.
      */
     public List<DomainEvent> pullDomainEvents() {
-        List<DomainEvent> events = Collections.unmodifiableList(this.domainEvents);
+        List<DomainEvent> events = new ArrayList<>(this.domainEvents);
         this.domainEvents.clear();
         return events;
     }

@@ -8,6 +8,7 @@ import com.example.hexagonalvslayered.hexagonal.application.port.out.SaveTodoPor
 import com.example.hexagonalvslayered.hexagonal.domain.Todo;
 import com.example.hexagonalvslayered.hexagonal.domain.event.TodoCreatedEvent;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,9 +26,10 @@ import java.util.Optional;
  * 4. 외부 시스템과의 결합도 감소: 포트 인터페이스를 통해 외부 시스템과 통신하므로 결합도가 낮음
  * 5. 이벤트 기반 통신: 도메인 이벤트를 통한 비동기 통신으로 서비스 간 결합도 감소
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
-public class TodoService implements GetTodoQuery, ManageTodoUseCase {
+public class HexagonalTodoService implements GetTodoQuery, ManageTodoUseCase {
     
     // 헥사고날 아키텍처에서는 서비스가 구체적인 구현체가 아닌 포트 인터페이스에 의존
     // 이를 통해 외부 시스템과의 결합도를 낮춤
@@ -56,11 +58,14 @@ public class TodoService implements GetTodoQuery, ManageTodoUseCase {
                 .updatedAt(LocalDateTime.now())
                 .build();
         
+        // Todo 저장
         Todo savedTodo = saveTodoPort.saveTodo(todo);
         
-        // 도메인 이벤트 발행
+        // 도메인 이벤트 등록
         TodoCreatedEvent event = new TodoCreatedEvent(savedTodo.getId(), savedTodo.getTitle());
         savedTodo.registerEvent(event);
+        
+        // 이벤트 발행
         publishEvents(savedTodo);
         
         return savedTodo;
@@ -77,7 +82,7 @@ public class TodoService implements GetTodoQuery, ManageTodoUseCase {
         todo.update(command.getTitle(), command.getDescription());
         
         Todo updatedTodo = saveTodoPort.saveTodo(todo);
-        publishEvents(updatedTodo);
+        publishEvents(todo);
         
         return updatedTodo;
     }
@@ -105,15 +110,22 @@ public class TodoService implements GetTodoQuery, ManageTodoUseCase {
         Todo updatedTodo = saveTodoPort.saveTodo(todo);
         
         // 도메인 이벤트 발행
-        publishEvents(updatedTodo);
+        publishEvents(todo);
         
         return updatedTodo;
     }
     
     /**
      * 도메인 객체에서 발생한 이벤트를 발행합니다.
+     * 이벤트 발행 실패는 핵심 비즈니스 로직에 영향을 주지 않습니다.
      */
     private void publishEvents(Todo todo) {
-        todo.pullDomainEvents().forEach(eventPublisherPort::publishEvent);
+        todo.pullDomainEvents().forEach(event -> {
+            try {
+                eventPublisherPort.publishEvent(event);
+            } catch (Exception e) {
+                log.error("이벤트 발행 실패: {}", e.getMessage());
+            }
+        });
     }
 } 

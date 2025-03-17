@@ -169,8 +169,8 @@ graph TD
 
 2. **비즈니스 로직 위치**
 
-   - **헥사고날 아키텍처**: 비즈니스 로직이 도메인 모델 내에 캡슐화되어 있습니다.
-   - **레이어드 아키텍처**: 비즈니스 로직이 주로 서비스 계층에 집중되어 있습니다.
+   - **헥사고날**: 비즈니스 로직이 도메인 모델 내에 캡슐화되어 있습니다.
+   - **레이어드**: 비즈니스 로직이 주로 서비스 계층에 집중되어 있습니다.
 
 3. **외부 시스템과의 통합**
    - **헥사고날 아키텍처**: 포트와 어댑터를 통해 외부 시스템과 통합됩니다.
@@ -215,11 +215,11 @@ graph TD
 
 2. **직접적인 의존성**: 각 계층이 바로 아래 계층에 직접 의존
 
-   - 예시: 서비스 계층이 `TodoRepository`와 `ExternalNotificationService`에 직접 의존
+   - 예시: 서비스 계층이 `LayeredTodoRepository`와 `ExternalNotificationService`에 직접 의존
 
 3. **비즈니스 로직 위치**: 주로 서비스 계층에 비즈니스 로직이 집중됨
 
-   - 예시: Todo 완료 처리 로직이 `TodoService.completeTodo()` 메서드에 구현됨
+   - 예시: Todo 완료 처리 로직이 `LayeredTodoService.completeTodo()` 메서드에 구현됨
 
 4. **장점**:
    - 이해하기 쉬운 단순한 구조
@@ -288,6 +288,8 @@ todo.setUpdatedAt(LocalDateTime.now());
 - Spring Data JPA
 - H2 Database (개발용)
 - Lombok
+- RestTemplate (서비스 간 통신)
+- Docker Compose (컨테이너 관리)
 
 ## 프로젝트 구조
 
@@ -298,7 +300,7 @@ src/main/java/com/example/hexagonalvslayered/
 │   ├── application/    # 유스케이스 및 포트 인터페이스
 │   └── adapter/        # 어댑터 구현체
 │       ├── in/         # 인바운드 어댑터 (컨트롤러)
-│       └── out/        # 아웃바운드 어댑터 (리포지토리)
+│       └── out/        # 아웃바운드 어댑터 (리포지토리, REST API)
 │
 └── layered/
     ├── controller/     # 컨트롤러 계층
@@ -310,6 +312,8 @@ src/main/java/com/example/hexagonalvslayered/
 ```
 
 ## 실행 방법
+
+### 애플리케이션 실행
 
 ```bash
 ./gradlew bootRun
@@ -334,3 +338,222 @@ src/main/java/com/example/hexagonalvslayered/
 - `PUT /api/layered/todos/{id}`: Todo 항목 수정
 - `DELETE /api/layered/todos/{id}`: Todo 항목 삭제
 - `PATCH /api/layered/todos/{id}/complete`: Todo 항목 완료 상태 변경
+
+## 테스트 코드
+
+이 프로젝트는 두 아키텍처의 차이점을 테스트 코드로 보여줍니다.
+
+### 아키텍처 비교 테스트
+
+`ArchitectureComparisonTest` 클래스는 두 아키텍처의 주요 차이점을 테스트로 검증합니다:
+
+#### 1. 외부 시스템 통합 방식 테스트
+
+레이어드 아키텍처에서는 서비스가 외부 시스템을 직접 참조하지만, 헥사고날 아키텍처에서는 인터페이스(포트)를 통해 간접적으로 참조합니다:
+
+```java
+@Test
+void testExternalSystemIntegration() {
+    // 헥사고날 아키텍처: 포트 인터페이스를 통한 통합
+    TodoUseCase hexagonalUseCase = new HexagonalTodoService(mockTodoRepository, mockNotificationPort);
+
+    // 레이어드 아키텍처: 직접 의존성을 통한 통합
+    LayeredTodoService layeredService = new LayeredTodoService(mockTodoRepository, mockNotificationService);
+
+    // 헥사고날 방식에서는 모킹된 포트 인터페이스를 통해 외부 시스템과 통신
+    verify(mockNotificationPort).sendCompletionNotification(any(), any());
+
+    // 레이어드 방식에서는 구체적인 서비스 구현체를 직접 호출
+    verify(mockNotificationService).sendCompletionNotification(any(), any());
+}
+```
+
+**쉽게 이해하기**: 레이어드 아키텍처에서는 직접 전화번호를 알고 전화하는 것과 같고, 헥사고날 아키텍처에서는 비서(인터페이스)에게 "누구에게 전화해줘"라고 부탁하는 것과 같습니다.
+
+#### 2. 도메인 로직 위치 테스트
+
+레이어드 아키텍처에서는 비즈니스 로직이 주로 서비스 계층에 있지만, 헥사고날 아키텍처에서는 도메인 객체가 자신의 로직을 직접 가집니다:
+
+```java
+@Test
+void testDomainLogicLocation() {
+    // 헥사고날 아키텍처: 도메인 모델에 비즈니스 로직 존재
+    Todo hexagonalTodo = new Todo("Complete tests");
+    hexagonalTodo.markAsCompleted();  // 도메인 객체가 비즈니스 로직 수행
+    assertTrue(hexagonalTodo.isCompleted());
+
+    // 레이어드 아키텍처: 서비스 계층에 비즈니스 로직 존재
+    Todo layeredTodo = new Todo("Complete tests");
+    layeredTodoService.completeTodo(layeredTodo);  // 서비스가 비즈니스 로직 수행
+    assertTrue(layeredTodo.isCompleted());
+}
+```
+
+**쉽게 이해하기**: 레이어드 아키텍처는 데이터(Todo)와 행동(서비스)이 분리된 것이고, 헥사고날 아키텍처는 데이터와 행동이 함께 있는 것입니다. 자동차를 생각해보면, 레이어드는 "운전자(서비스)가 자동차(모델)를 운전하는" 구조이고, 헥사고날은 "자동차가 스스로 운전하는 기능을 가진" 구조입니다.
+
+#### 3. 외부 시스템 장애 격리 테스트
+
+외부 시스템에 문제가 생겼을 때 두 아키텍처의 대응 방식 차이를 보여줍니다:
+
+```java
+@Test
+void testExternalSystemFailureIsolation() {
+    // 헥사고날 아키텍처: 어댑터에서 장애 발생 시 격리 가능
+    doThrow(new RuntimeException("External system failure"))
+        .when(mockNotificationPort).sendCompletionNotification(any(), any());
+
+    // 격리된 장애 처리 로직으로 인해 핵심 비즈니스 로직은 계속 동작
+    Todo todo = hexagonalTodoService.completeTodo(1L);
+    assertTrue(todo.isCompleted());
+
+    // 레이어드 아키텍처: 외부 시스템 장애가 직접 영향을 미칠 수 있음
+    doThrow(new RuntimeException("External system failure"))
+        .when(mockNotificationService).sendCompletionNotification(any(), any());
+
+    // 예외 처리가 없으면 비즈니스 로직 실행이 중단될 수 있음
+    assertThrows(RuntimeException.class, () -> layeredTodoService.completeTodo(1L));
+}
+```
+
+**쉽게 이해하기**: 레이어드 아키텍처는 한 부품이 고장나면 전체 기계가 멈출 수 있지만, 헥사고날 아키텍처는 한 부품이 고장나도 핵심 기능은 계속 작동할 수 있습니다. 식당으로 비유하면, 레이어드는 주방(비즈니스 로직)과 홀(외부 시스템)이 직접 연결된 구조라 홀에 문제가 생기면 주방 작업도 중단될 수 있지만, 헥사고날은 주방과 홀 사이에 푸드 패스(포트)가 있어 홀에 문제가 생겨도 주방은 계속 음식을 만들 수 있습니다.
+
+### 테스트 방식의 차이
+
+#### 헥사고날 아키텍처의 테스트 방식
+
+헥사고날 아키텍처에서는 인터페이스(포트)를 이용해 외부 시스템을 가짜(mock)로 대체하기 쉽기 때문에, 단위 테스트가 간편합니다:
+
+```java
+@Test
+void testHexagonalTodoCompletionUseCase() {
+    // 모든 외부 의존성을 모킹하여 순수한 단위 테스트 가능
+    HexagonalTodoRepository mockRepo = mock(HexagonalTodoRepository.class);
+    SendNotificationPort mockNotificationPort = mock(SendNotificationPort.class);
+
+    // 테스트 데이터 준비
+    Todo todo = new Todo(1L, "Write tests", false);
+    when(mockRepo.findById(1L)).thenReturn(Optional.of(todo));
+
+    // 유스케이스 실행
+    TodoUseCase useCase = new HexagonalTodoService(mockRepo, mockNotificationPort);
+    useCase.completeTodo(1L);
+
+    // 도메인 로직 검증
+    assertTrue(todo.isCompleted());
+
+    // 포트 호출 검증
+    verify(mockNotificationPort).sendCompletionNotification(eq(1L), eq("Write tests"));
+    verify(mockRepo).save(todo);
+}
+```
+
+**쉽게 이해하기**: 진짜 친구들 없이도 롤플레잉 게임을 할 수 있는 것처럼, 진짜 데이터베이스나 외부 서비스 없이도 비즈니스 로직을 테스트할 수 있습니다.
+
+#### 레이어드 아키텍처의 테스트 방식
+
+레이어드 아키텍처에서는 계층 간 직접적인 의존성으로 인해 통합 테스트가 더 많이 필요합니다:
+
+```java
+@Test
+void testLayeredTodoCompletionService() {
+    // 실제 리포지토리와 서비스를 사용한 통합 테스트 필요성 높음
+    LayeredTodoRepository repository = new JpaLayeredTodoRepository();
+    ExternalNotificationService notificationService = new ExternalNotificationService();
+
+    // 서비스 계층 테스트
+    LayeredTodoService service = new LayeredTodoService(repository, notificationService);
+    Todo todo = new Todo(1L, "Write tests", false);
+    repository.save(todo);
+
+    service.completeTodo(1L);
+
+    // 상태 변경 및 부수 효과 검증 필요
+    Todo updatedTodo = repository.findById(1L).orElseThrow();
+    assertTrue(updatedTodo.isCompleted());
+}
+```
+
+**쉽게 이해하기**: 전체 자전거를 조립해서 테스트해야 제대로 작동하는지 알 수 있는 것처럼, 모든 계층을 함께 테스트해야 하는 경우가 많습니다.
+
+### 이벤트 통신 테스트 (REST API 예시)
+
+헥사고날 아키텍처에서는 서비스 간 직접 호출 대신 REST API를 통한 이벤트 통신을 사용할 수 있습니다:
+
+#### 1. 이벤트 발행 테스트
+
+```java
+@Test
+void testPublishTodoCompletedEvent() {
+    // REST API를 통한 이벤트 발행 어댑터 테스트
+    RestApiEventPublisherAdapter publisher = new RestApiEventPublisherAdapter(restTemplate);
+    TodoCompletedEvent event = new TodoCompletedEvent(1L, "Test Todo");
+
+    publisher.publishTodoCompletedEvent(event);
+
+    // 웹훅/API 호출이 발생했는지 검증
+    verify(restTemplate).postForEntity(
+        eq("http://notification-service/api/events"),
+        eq(event),
+        any()
+    );
+}
+```
+
+**쉽게 이해하기**: 직접 다른 팀에게 이메일을 보내는 것과 같습니다. 이메일을 받은 팀은 필요한 조치를 취할 수 있습니다.
+
+#### 2. 이벤트 수신 테스트
+
+```java
+@Test
+void testConsumeTodoCompletedEvent() {
+    // 웹훅으로 이벤트 수신 테스트
+    TodoCompletedEvent event = new TodoCompletedEvent(1L, "Test Todo");
+
+    // REST 컨트롤러를 통해 이벤트 수신
+    eventController.receiveEvent(event);
+
+    // 이벤트 처리 검증
+    verify(notificationService).sendCompletionNotification(1L, "Test Todo");
+}
+```
+
+**쉽게 이해하기**: 이메일을 받고 해당 업무를 처리하는 것과 같습니다.
+
+#### 3. 두 아키텍처의 이벤트 처리 방식 비교
+
+```java
+@Test
+void compareEventHandlingApproaches() {
+    // 헥사고날 아키텍처: REST API를 통한 이벤트 기반 통신
+    hexagonalTodoService.completeTodo(1L);
+    // 이벤트가 발행되고 REST API를 통해 전달됨
+    verify(eventPublisherPort).publishTodoCompletedEvent(any(TodoCompletedEvent.class));
+
+    // 레이어드 아키텍처: 직접 동기 호출
+    layeredTodoService.completeTodo(1L);
+    // 서비스가 외부 시스템을 직접 호출
+    verify(notificationService).sendCompletionNotification(eq(1L), any());
+}
+```
+
+**쉽게 이해하기**: 레이어드 아키텍처는 직접 전화하는 방식이고, 헥사고날 아키텍처는 메시지를 전달하는 서비스를 이용하는 방식입니다.
+
+### 테스트 실행 방법
+
+```bash
+# 모든 테스트 실행
+./gradlew test
+
+# 특정 테스트 클래스만 실행
+./gradlew test --tests "com.example.hexagonalvslayered.ArchitectureComparisonTest"
+./gradlew test --tests "com.example.hexagonalvslayered.hexagonal.adapter.out.rest.RestApiEventPublisherTest"
+./gradlew test --tests "com.example.hexagonalvslayered.hexagonal.adapter.in.rest.EventControllerTest"
+./gradlew test --tests "com.example.hexagonalvslayered.EventHandlingComparisonTest"
+
+# 헥사고날 아키텍처 단위 테스트만 실행
+./gradlew test --tests "com.example.hexagonalvslayered.hexagonal.domain.*"
+./gradlew test --tests "com.example.hexagonalvslayered.hexagonal.application.*"
+
+# 레이어드 아키텍처 서비스 계층 테스트만 실행
+./gradlew test --tests "com.example.hexagonalvslayered.layered.service.*"
+```

@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/hexagonal/todos")
 @RequiredArgsConstructor
-public class TodoController {
+public class HexagonalTodoController {
     
     private final GetTodoQuery getTodoQuery;
     private final ManageTodoUseCase manageTodoUseCase;

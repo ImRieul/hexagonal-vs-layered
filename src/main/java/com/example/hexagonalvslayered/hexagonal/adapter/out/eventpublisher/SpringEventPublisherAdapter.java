@@ -4,6 +4,7 @@ import com.example.hexagonalvslayered.hexagonal.application.port.out.EventPublis
 import com.example.hexagonalvslayered.hexagonal.domain.event.DomainEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 /**
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
  * 2. 기술적 세부사항 처리: 특정 기술(여기서는 Spring의 이벤트 시스템)에 대한 세부사항 처리
  * 3. 도메인 로직과 인프라 로직의 분리: 도메인 로직은 포트 인터페이스에 의존하고, 인프라 로직은 어댑터에 구현
  */
+@Primary
 @Component
 @RequiredArgsConstructor
 public class SpringEventPublisherAdapter implements EventPublisherPort {

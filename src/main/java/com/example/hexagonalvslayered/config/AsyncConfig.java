@@ -9,5 +9,4 @@ import org.springframework.scheduling.annotation.EnableAsync;
 @Configuration
 @EnableAsync
 public class AsyncConfig {
-    // 필요한 경우 여기에 ThreadPoolTaskExecutor 등의 설정을 추가할 수 있습니다.
 } 

@@ -4,7 +4,7 @@ import com.example.hexagonalvslayered.common.ExternalNotificationService;
 import com.example.hexagonalvslayered.layered.dto.TodoDto;
 import com.example.hexagonalvslayered.layered.dto.TodoRequest;
 import com.example.hexagonalvslayered.layered.model.Todo;
-import com.example.hexagonalvslayered.layered.repository.TodoRepository;
+import com.example.hexagonalvslayered.layered.repository.LayeredTodoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,10 +23,10 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
-public class TodoService {
+public class LayeredTodoService {
     
     // 레이어드 아키텍처에서는 서비스가 Repository에 직접 의존
-    private final TodoRepository todoRepository;
+    private final LayeredTodoRepository todoRepository;
     
     // 레이어드 아키텍처에서는 외부 시스템에 직접 의존
     // 이는 서비스 계층과 외부 시스템 간의 강한 결합을 만듦

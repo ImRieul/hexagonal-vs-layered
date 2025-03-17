@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class TodoPersistenceAdapter implements LoadTodoPort, SaveTodoPort {
     
-    private final TodoRepository todoRepository;
+    private final HexagonalTodoRepository todoRepository;
     
     @Override
     public List<Todo> loadAllTodos() {

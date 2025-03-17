@@ -1,0 +1,16 @@
+spring:
+  rest:
+    notification-service-url: http://notification-service
+    events-endpoint: /api/events
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  datasource:
+    url: jdbc:h2:mem:testdb
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver

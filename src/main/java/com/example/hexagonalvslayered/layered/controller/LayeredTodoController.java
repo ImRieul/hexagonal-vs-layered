@@ -2,7 +2,7 @@ package com.example.hexagonalvslayered.layered.controller;
 
 import com.example.hexagonalvslayered.layered.dto.TodoDto;
 import com.example.hexagonalvslayered.layered.dto.TodoRequest;
-import com.example.hexagonalvslayered.layered.service.TodoService;
+import com.example.hexagonalvslayered.layered.service.LayeredTodoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,9 +13,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/layered/todos")
 @RequiredArgsConstructor
-public class TodoController {
+public class LayeredTodoController {
     
-    private final TodoService todoService;
+    private final LayeredTodoService todoService;
     
     @GetMapping
     public ResponseEntity<List<TodoDto>> getAllTodos() {
